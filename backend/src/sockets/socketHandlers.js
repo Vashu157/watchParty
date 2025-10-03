@@ -126,18 +126,47 @@ const handleSocketConnection = (io) => {
         socket.emit("error", { message: "Failed to end room" });
       }
     });
-    socket.on("room-update", (data) => {
-      const { roomLink, updateType, videoUrl } = data;
+    socket.on("room-update", async (data) => {
+      try {
+        const { roomLink, updateType, videoUrl } = data;
 
-      if (socket.roomLink !== roomLink) {
-        socket.emit("error", { message: "You are not in this room" });
-        return;
+        if (socket.roomLink !== roomLink) {
+          socket.emit("error", { message: "You are not in this room" });
+          return;
+        }
+
+        // If updating video URL, save to database
+        if (updateType === "videoUrl" && videoUrl) {
+          const room = await Room.findOne({ roomLink, isActive: true });
+          if (!room) {
+            socket.emit("error", { message: "Room not found or inactive" });
+            return;
+          }
+
+          // Only host can update video URL
+          if (room.host !== socket.userId) {
+            socket.emit("error", { message: "Only the host can update the video URL" });
+            return;
+          }
+
+          // Update video URL in database
+          room.videoUrl = videoUrl;
+          room.startTime = new Date(); // Reset start time when video changes
+          await room.save();
+
+          console.log(`🎥 Video URL updated in room ${roomLink}: ${videoUrl}`);
+        }
+
+        // Emit real-time update to all other users
+        socket.to(roomLink).emit("room-updated", {
+          updateType,
+          videoUrl,
+          updatedBy: socket.userName,
+        });
+      } catch (error) {
+        console.error("Error updating room:", error);
+        socket.emit("error", { message: "Failed to update room" });
       }
-      socket.to(roomLink).emit("room-updated", {
-        updateType,
-        videoUrl,
-        updatedBy: socket.userName,
-      });
     });
 
     // Handle typing indicators
@@ -207,6 +236,25 @@ const handleSocketConnection = (io) => {
 
       socket.to(roomLink).emit("seek", { time });
     });
+
+    socket.on("video-sync", async ({ roomLink, currentTime, isPlaying, userId }) => {
+      console.log(
+        `🔄 Video sync in room ${roomLink} - time: ${currentTime}, playing: ${isPlaying} by user ${userId}`
+      );
+      const room = await Room.findOne({ roomLink });
+      if (!room) return;
+
+      // Only host can broadcast sync
+      if (room.host !== userId) return;
+
+      videoManager.updateVideoState(roomLink, {
+        isPlaying,
+        lastKnownTimestamp: currentTime,
+      });
+
+      socket.to(roomLink).emit("video-sync", { currentTime, isPlaying });
+    });
+
     socket.on("error", (error) => {
       console.error("Socket error:", error);
     });

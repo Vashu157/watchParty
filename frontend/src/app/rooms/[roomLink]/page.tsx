@@ -96,16 +96,44 @@ export default function RoomPage() {
     };
   }, [roomLink, router]);
 
-  const handleVideoUrlSubmit = (e: React.FormEvent) => {
+  const handleVideoUrlSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!videoUrl.trim()) return;
 
-    if (socket) {
-      socket.emit("room-update", {
-        roomLink,
-        updateType: "videoUrl",
-        videoUrl,
+    try {
+      // Save to database via API
+      const response = await fetch("http://localhost:5000/api/rooms/update-video", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          roomLink,
+          videoUrl: videoUrl.trim(),
+          userId: currentUser.userId,
+        }),
       });
+
+      const data = await response.json();
+      
+      if (!data.success) {
+        alert(data.error || "Failed to update video URL");
+        return;
+      }
+
+      // Emit socket event for real-time updates
+      if (socket) {
+        socket.emit("room-update", {
+          roomLink,
+          updateType: "videoUrl",
+          videoUrl: videoUrl.trim(),
+        });
+      }
+
+      console.log("Video URL updated successfully:", data);
+    } catch (error) {
+      console.error("Error updating video URL:", error);
+      alert("Failed to update video URL. Please try again.");
     }
   };
 
@@ -151,6 +179,7 @@ export default function RoomPage() {
                 onChange={(e) => setVideoUrl(e.target.value)}
                 placeholder="Enter video URL"
                 className="flex-1 border p-2 rounded"
+                suppressHydrationWarning={true}
               />
               <button
                 type="submit"

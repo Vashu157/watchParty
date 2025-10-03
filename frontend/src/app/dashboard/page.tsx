@@ -132,6 +132,7 @@ const DashboardPage: React.FC = () => {
           onChange={(e) => setUserName(e.target.value)}
           placeholder="Enter your name..."
           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          suppressHydrationWarning={true}
         />
       </div>
 
@@ -161,6 +162,7 @@ const DashboardPage: React.FC = () => {
               onChange={(e) => setRoomLink(e.target.value)}
               placeholder="Paste room link or enter room ID..."
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+              suppressHydrationWarning={true}
             />
             <button
               className={`w-full px-6 py-3 bg-green-600 text-white font-medium rounded-lg shadow-md hover:bg-green-700 transition ${

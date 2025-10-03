@@ -40,6 +40,7 @@ const Navbar: React.FC = () => {
             <button
               onClick={() => setIsOpen(!isOpen)}
               className="text-gray-700 hover:text-indigo-600 focus:outline-none"
+              suppressHydrationWarning={true}
             >
               {isOpen ? "✖" : "☰"}
             </button>
