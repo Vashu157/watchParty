@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { io, Socket } from "socket.io-client";
 import RoomPlayer from "@/components/RoomPlayer";
 import ChatBox from "@/components/ChatBox";
+import VideoCall from "@/components/VideoCall";
 import { userService } from "../../../utils/userService";
 interface User {
   userId: string;
@@ -73,6 +74,38 @@ export default function RoomPage() {
           });
         });
 
+        // Listen for room updates
+        newSocket.on("room-joined", (data: any) => {
+          console.log("Room joined data:", data);
+          // The userCount will be updated by user-joined/user-left events
+          // but we need to ensure our current user is in the list
+          setUsers(prevUsers => {
+            const currentUserExists = prevUsers.some(u => u.userId === user.userId);
+            if (!currentUserExists) {
+              return [...prevUsers, { userId: user.userId, userName: user.userName }];
+            }
+            return prevUsers;
+          });
+        });
+
+        // Listen for user joins
+        newSocket.on("user-joined", (data: any) => {
+          console.log("User joined:", data);
+          setUsers(prevUsers => {
+            const exists = prevUsers.some(u => u.userId === data.userId);
+            if (!exists) {
+              return [...prevUsers, { userId: data.userId, userName: data.userName }];
+            }
+            return prevUsers;
+          });
+        });
+
+        // Listen for user leaves  
+        newSocket.on("user-left", (data: any) => {
+          console.log("User left:", data);
+          setUsers(prevUsers => prevUsers.filter(u => u.userId !== data.userId));
+        });
+
         setStatus("success");
         return newSocket;
       } catch (error) {
@@ -130,9 +163,22 @@ export default function RoomPage() {
       <div className="max-w-6xl mx-auto grid grid-cols-3 gap-6">
         {/* Left side: Video player */}
         <div className="col-span-2">
-          <h1 className="text-2xl font-bold mb-4">
-            Watch Party Room {socket?.connected ? "🟢" : "🔴"}
-          </h1>
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="text-2xl font-bold">
+              Watch Party Room {socket?.connected ? "🟢" : "🔴"}
+            </h1>
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+              </svg>
+              {users.length} user{users.length !== 1 ? 's' : ''} online
+              {users.length === 2 && (
+                <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                  Video call available
+                </span>
+              )}
+            </div>
+          </div>
           {isHost && (
             <div className="mb-4 p-2 bg-blue-100 rounded text-sm text-blue-700">
               You are the host of this room
@@ -160,6 +206,14 @@ export default function RoomPage() {
               </button>
             </form>
           )}
+
+          {/* Video Call component - only show when exactly 2 users */}
+          <VideoCall
+            socket={socket}
+            roomLink={roomLink}
+            currentUserId={currentUser.userId}
+            userCount={users.length}
+          />
 
           <RoomPlayer
             roomData={{

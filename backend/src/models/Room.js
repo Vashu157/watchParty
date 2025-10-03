@@ -24,7 +24,14 @@ const RoomSchema = new mongoose.Schema(
     },
     videoUrl: { 
       type: String 
-    }
+    },
+    videoCallActive: {
+      type: Boolean,
+      default: false
+    },
+    videoCallParticipants: [{
+      type: String
+    }]
   },
   {
     timestamps: true

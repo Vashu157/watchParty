@@ -2,6 +2,7 @@ import Room from "../models/Room.js";
 import Message from "../models/Message.js";
 import chatManager from "../utils/chatManager.js";
 import videoManager from "../utils/videoManager.js";
+import handleWebRTCEvents from "./webrtcHandlers.js";
 
 const handleSocketConnection = (io) => {
   io.on("connection", (socket) => {
@@ -207,6 +208,9 @@ const handleSocketConnection = (io) => {
 
       socket.to(roomLink).emit("seek", { time });
     });
+    // WebRTC handlers
+    handleWebRTCEvents(io, socket);
+
     socket.on("error", (error) => {
       console.error("Socket error:", error);
     });
